@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ar">
+  <head>
+    <meta charset="UTF-8" />
+    <title>لوحة التحكم</title>
+    <style>
+      body {
+        font-family: "Cairo", sans-serif;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 20px;
+      }
+
+      h2 {
+        text-align: center;
+        color: #333;
+      }
+
+      form#addProductForm {
+        background: #fff;
+        padding: 20px;
+        max-width: 400px;
+        margin: 20px auto;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      form#addProductForm input {
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        font-size: 15px;
+      }
+
+      form#addProductForm button {
+        background-color: #1e88e5;
+        color: white;
+        padding: 12px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+      }
+
+      form#addProductForm button:hover {
+        background-color: #1565c0;
+      }
+
+      #products {
+        max-width: 800px;
+        margin: 40px auto;
+      }
+
+      #products div {
+        background-color: #fff;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      #products img {
+        margin-top: 10px;
+        border-radius: 6px;
+      }
+
+      #products button {
+        margin-top: 10px;
+        margin-left: 10px;
+        background-color: #e74c3c;
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+
+      #products button.edit {
+        background-color: #f39c12;
+      }
+
+      #products button.edit:hover {
+        background-color: #e67e22;
+      }
+
+      #products button:hover {
+        background-color: #c0392b;
+      }
+
+      /* Modal */
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        justify-content: center;
+        align-items: center;
+      }
+
+      .modal-content {
+        background: #fff;
+        padding: 20px;
+        border-radius: 10px;
+        width: 90%;
+        max-width: 400px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .modal-content input {
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+      }
+
+      .modal-content button {
+        padding: 10px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+
+      .modal-content .save-btn {
+        background-color: #28a745;
+        color: white;
+      }
+
+      .modal-content .close-btn {
+        background-color: #dc3545;
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>إضافة منتج</h2>
+    <form id="addProductForm">
+      <input type="text" id="name" placeholder="اسم المنتج" required />
+      <input type="text" id="price" placeholder="السعر" required />
+      <input type="text" id="image" placeholder="رابط الصورة" required />
+      <button type="submit">إضافة</button>
+    </form>
+
+    <h2>كل المنتجات</h2>
+    <div id="products"></div>
+
+    <!-- Modal -->
+    <div class="modal" id="editModal">
+      <div class="modal-content">
+        <h3>تعديل المنتج</h3>
+        <input type="text" id="editName" />
+        <input type="text" id="editPrice" />
+        <input type="text" id="editImage" />
+        <button class="save-btn" id="saveEdit">حفظ التعديلات</button>
+        <button class="close-btn" id="closeModal">إغلاق</button>
+      </div>
+    </div>
+
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+      import {
+        getFirestore,
+        collection,
+        addDoc,
+        getDocs,
+        deleteDoc,
+        doc,
+        updateDoc,
+      } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyCSKBvATBOik2am510JJmoj2MYQszHy32Y",
+        authDomain: "fayad-8f902.firebaseapp.com",
+        projectId: "fayad-8f902",
+        storageBucket: "fayad-8f902.firebasestorage.app",
+        messagingSenderId: "513233944816",
+        appId: "1:513233944816:web:da524ebd1a7aac866d8235",
+        measurementId: "G-V76JL0C0L1",
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+
+      const form = document.getElementById("addProductForm");
+      const productsDiv = document.getElementById("products");
+
+      const editModal = document.getElementById("editModal");
+      const editName = document.getElementById("editName");
+      const editPrice = document.getElementById("editPrice");
+      const editImage = document.getElementById("editImage");
+      const saveEdit = document.getElementById("saveEdit");
+      const closeModal = document.getElementById("closeModal");
+
+      let currentEditId = null;
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const name = document.getElementById("name").value.trim();
+        const price = document.getElementById("price").value.trim();
+        const image = document.getElementById("image").value.trim();
+
+        await addDoc(collection(db, "products"), { name, price, image });
+        alert("✅ تم الإضافة");
+        form.reset();
+        loadProducts();
+      });
+
+      async function loadProducts() {
+        productsDiv.innerHTML = "";
+        const querySnapshot = await getDocs(collection(db, "products"));
+        querySnapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          const box = document.createElement("div");
+          box.innerHTML = `
+            <h3>${data.name}</h3>
+            <p>${data.price} جنيه</p>
+            <img src="${data.image}" alt="${data.name}" width="150" /><br />
+            <button data-id="${docSnap.id}" class="delete">🗑️ حذف</button>
+            <button data-id="${docSnap.id}" class="edit">✏️ تعديل</button>
+          `;
+          productsDiv.appendChild(box);
+        });
+
+        document.querySelectorAll("button.delete").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const id = btn.getAttribute("data-id");
+            await deleteDoc(doc(db, "products", id));
+            alert("✅ تم الحذف");
+            loadProducts();
+          });
+        });
+
+        document.querySelectorAll("button.edit").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const id = btn.getAttribute("data-id");
+            const current = btn.parentElement;
+            editName.value = current.querySelector("h3").textContent;
+            editPrice.value = current
+              .querySelector("p")
+              .textContent.replace(" جنيه", "");
+            editImage.value = current.querySelector("img").src;
+            currentEditId = id;
+            editModal.style.display = "flex";
+          });
+        });
+      }
+
+      saveEdit.addEventListener("click", async () => {
+        if (!currentEditId) return;
+        await updateDoc(doc(db, "products", currentEditId), {
+          name: editName.value.trim(),
+          price: editPrice.value.trim(),
+          image: editImage.value.trim(),
+        });
+        alert("✏️ تم التعديل");
+        editModal.style.display = "none";
+        loadProducts();
+      });
+
+      closeModal.addEventListener("click", () => {
+        editModal.style.display = "none";
+        currentEditId = null;
+      });
+
+      window.addEventListener("click", (e) => {
+        if (e.target === editModal) {
+          editModal.style.display = "none";
+          currentEditId = null;
+        }
+      });
+
+      loadProducts();
+    </script>
+  </body>
+</html>
